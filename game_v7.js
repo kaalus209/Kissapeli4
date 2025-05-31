@@ -198,7 +198,7 @@ function draw() {
 
     // GAME OVER tai WELL PLAYED näkymä
     if (gameOver || gameWon) {
-        const title = gameOver ? 'GAME OVER' : 'WELL PLAYED';
+        const title = gameOver ? 'GAME OVER' : 'MISSION COMPLETE!';
         drawCenteredText(title, 120, '32px Arial');
 
         // "Score" ja "Level" keskelle — mutta EI Time enää

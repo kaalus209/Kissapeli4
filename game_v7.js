@@ -203,7 +203,13 @@ function draw() {
 
         // "Score" ja "Level" keskelle — mutta EI Time enää
         drawCenteredText('Score: ' + score, 170, '20px Arial');
+
+    if (gameWon) {
+    let totalTime = (endTime - startTime) / 1000;    
+        drawCenteredText('TIME: ' + totalTime.toFixed(2) + ' s', 200, '20px Arial');
+    } else {
         drawCenteredText('Level: ' + level, 200, '20px Arial');
+    }
 
         drawButton();
     }

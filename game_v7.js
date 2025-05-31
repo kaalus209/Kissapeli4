@@ -205,8 +205,7 @@ function draw() {
 
         drawCenteredText('Score: ' + score, 170, '20px Arial');
         drawCenteredText('Level: ' + level, 200, '20px Arial');
-        drawCenteredText('Time: ' + totalTime.toFixed(2) + ' s', 230, '20px Arial');
-
+        
         drawButton();
     }
 }

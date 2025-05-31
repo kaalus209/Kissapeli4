@@ -1,99 +1,64 @@
-
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-let cat = { x: 50, y: 350, width: 40, height: 40, vy: 0, grounded: true, direction: 1 };
-let baseSpeed = 2;
-let speed = baseSpeed;
-let level = 1;
-let maxLevels = 5;
-let score = 0;
-
-let activeFish = null;
-let lastFishPos = { x: 0, y: 0 };
-let badFishes = [];
+let cat, activeFish, badFish, level, score, speed;
 let gravity = 1.5;
 let gameOver = false;
 let gameWon = false;
-
+let maxLevels = 5;
 let jumpStrength = 0;
 let levelUpTimer = 0;
 
-// Äänet
-const jumpSound = new Audio('jump.wav');
-const collectSound = new Audio('collect.wav');
-const levelupSound = new Audio('levelup.wav');
+// Uudet muuttujat ajanottoon
+let startTime = 0;
+let endTime = 0;
 
-function getSafeYPosition(minY = 60, maxY = canvas.height - 100) {
-    return minY + Math.random() * (maxY - minY);
-}
-
-function isTooClose(fish, others) {
-    for (let o of others) {
-        const dx = fish.x - o.x;
-        const dy = fish.y - o.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance < 30) return true;
-    }
-    return false;
-}
-
-function spawnBadFishes() {
-    badFishes = [];
-    let tries = 0;
-    while (badFishes.length < 2 && tries < 100) {
-        let bf = { x: Math.random() * (canvas.width - 20), y: getSafeYPosition(200, canvas.height - 100) };
-        if (!isTooClose(bf, badFishes)) {
-            badFishes.push(bf);
-        }
-        tries++;
-    }
-}
-
-function spawnNewGoodFish() {
-    let tries = 0;
-    do {
-        activeFish = { x: Math.random() * (canvas.width - 20), y: getSafeYPosition(60, canvas.height - 100) };
-        tries++;
-    } while (
-        (isTooClose(activeFish, badFishes) ||
-        badFishes.some(bf => activeFish.y < bf.y + 20) ||
-        Math.abs(activeFish.x - lastFishPos.x) < 40 ||
-        Math.abs(activeFish.y - lastFishPos.y) < 40) && tries < 100
-    );
-
-    // Päivitetään viimeisin paikka
-    lastFishPos = { x: activeFish.x, y: activeFish.y };
-}
-
+// Aloitus
 function resetGame() {
-    score = 0;
-    level = 1;
-    speed = baseSpeed;
     cat = { x: 50, y: 350, width: 40, height: 40, vy: 0, grounded: true, direction: 1 };
+    level = 1;
+    score = 0;
+    speed = 2;
     gameOver = false;
     gameWon = false;
-    spawnBadFishes();
-    spawnNewGoodFish();
+    startTime = Date.now(); // Ajanotto alkaa
+    endTime = 0;
+    spawnBadFish();
+    spawnGoodFish();
 }
 
+// Spawnaa goodFish
+function spawnGoodFish() {
+    activeFish = {
+        x: Math.random() * (canvas.width - 20),
+        y: 60 + Math.random() * (canvas.height - 160)
+    };
+}
+
+// Spawnaa badFish → YLEMMÄLLE puolikkaalle
+function spawnBadFish() {
+    badFish = {
+        x: Math.random() * (canvas.width - 20),
+        y: Math.random() * ((canvas.height / 2) - 20),
+        vx: speed * (Math.random() < 0.5 ? 1 : -1),
+        vy: (speed * (0.5 + Math.random())) * (Math.random() < 0.5 ? 1 : -1)
+    };
+}
+
+// Piirtofunktiot
 function drawCat() {
     ctx.fillStyle = 'orange';
     ctx.fillRect(cat.x, cat.y, cat.width, cat.height);
 }
 
 function drawFish() {
-    if (activeFish) {
-        ctx.fillStyle = 'blue';
-        ctx.fillRect(activeFish.x, activeFish.y, 20, 20);
-    }
+    ctx.fillStyle = 'blue';
+    ctx.fillRect(activeFish.x, activeFish.y, 20, 20);
 }
 
-function drawBadFishes() {
-    for (let bf of badFishes) {
-        ctx.fillStyle = 'green';
-        ctx.fillRect(bf.x, bf.y, 20, 20);
-    }
+function drawBadFish() {
+    ctx.fillStyle = 'green';
+    ctx.fillRect(badFish.x, badFish.y, 20, 20);
 }
 
 function drawText(text, x = 100, y = 180) {
@@ -110,27 +75,19 @@ function drawButton() {
     ctx.fillText('Restart', 160, 250);
 }
 
-canvas.addEventListener('click', function(e) {
-    if ((gameOver || gameWon) &&
-        e.offsetX >= 120 && e.offsetX <= 280 &&
-        e.offsetY >= 220 && e.offsetY <= 270) {
-        resetGame();
-    }
-});
-
+// Päivitys
 function update() {
     if (gameOver || gameWon) return;
 
+    // Liikuta kissaa
     cat.x += speed * cat.direction;
+    cat.x = Math.max(0, Math.min(canvas.width - cat.width, cat.x));
 
-    if (cat.x < 0) cat.x = 0;
-    if (cat.x + cat.width > canvas.width) cat.x = canvas.width - cat.width;
-
+    // Hyppy
     if (jumpStrength !== 0 && cat.grounded) {
         cat.vy = jumpStrength;
         cat.grounded = false;
         jumpStrength = 0;
-        jumpSound.play();
     }
 
     cat.y += cat.vy;
@@ -142,50 +99,94 @@ function update() {
         cat.grounded = true;
     }
 
-    if (activeFish &&
-        cat.x < activeFish.x + 20 && cat.x + cat.width > activeFish.x &&
-        cat.y < activeFish.y + 20 && cat.y + cat.height > activeFish.y) {
-        score++;
-        collectSound.play();
+    // Liikuta badFish
+    if (badFish) {
+        badFish.x += badFish.vx;
+        badFish.y += badFish.vy;
 
-        if (score % 10 === 0) {
-            level++;
-            if (level > maxLevels) {
-                gameWon = true;
-                return;
-            } else {
-                speed += 0.5;
-                spawnBadFishes();
-                spawnNewGoodFish();
-                levelUpTimer = 120;
-                levelupSound.play();
-                return;
-            }
-        } else {
-            spawnNewGoodFish();
+        // X-reuna
+        if (badFish.x <= 0 || badFish.x >= canvas.width - 20) {
+            badFish.vx *= -1;
+            badFish.x = Math.max(0, Math.min(canvas.width - 20, badFish.x));
+        }
+
+        // Y-reuna
+        if (badFish.y <= 0 || badFish.y >= canvas.height - 20) {
+            badFish.vy *= -1;
+            badFish.y = Math.max(0, Math.min(canvas.height - 20, badFish.y));
         }
     }
 
-    for (let bf of badFishes) {
-        if (cat.x < bf.x + 20 && cat.x + cat.width > bf.x &&
-            cat.y < bf.y + 20 && cat.y + cat.height > bf.y) {
-            gameOver = true;
+    // Tarkista goodFish törmäys
+    if (activeFish && collides(cat, activeFish)) {
+        score++;
+
+        if (score % 10 === 0) {
+            level++;
+
+            // BADFISH katoaa heti kun taso nousee
+            badFish = null;
+
+            if (level > maxLevels) {
+                gameWon = true;
+                endTime = Date.now(); // Ajanotto pysähtyy
+                return;
+            } else {
+                speed += 0.5;
+                activeFish = null;
+                levelUpTimer = 60;
+
+                // spawn badFish ja goodFish 1 sekunnin päästä
+                setTimeout(() => {
+                    spawnBadFish();
+                    spawnGoodFish();
+                }, 1000);
+
+                return;
+            }
         }
+
+        spawnGoodFish();
+    }
+
+    // Tarkista badFish törmäys
+    if (badFish && collides(cat, badFish)) {
+        gameOver = true;
     }
 
     if (levelUpTimer > 0) levelUpTimer--;
 }
 
+function collides(a, b) {
+    return a.x < b.x + 20 && a.x + a.width > b.x &&
+           a.y < b.y + 20 && a.y + a.height > b.y;
+}
+
+// Piirto
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     drawCat();
-    drawFish();
-    drawBadFishes();
+
+    if (activeFish) {
+        drawFish();
+    }
+
+    if (badFish) {
+        drawBadFish();
+    }
 
     ctx.fillStyle = 'black';
     ctx.font = '16px Arial';
     ctx.fillText('Score: ' + score, 10, 20);
-    ctx.fillText('Level: ' + level, 10, 40);
+
+    // Kun peli voitettu → näytä TIME
+    if (gameWon) {
+        let totalTime = (endTime - startTime) / 1000;
+        ctx.fillText('TIME: ' + totalTime.toFixed(2) + ' s', 10, 40);
+    } else {
+        ctx.fillText('Level: ' + level, 10, 40);
+    }
 
     if (levelUpTimer > 0) {
         drawText('LEVEL UP!', canvas.width - 150, 30);
@@ -208,11 +209,12 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-document.getElementById('leftBtn').addEventListener('touchstart', () => cat.direction = -1);
-document.getElementById('rightBtn').addEventListener('touchstart', () => cat.direction = 1);
-document.getElementById('jumpLowBtn').addEventListener('touchstart', () => jumpStrength = -14);
-document.getElementById('jumpMedBtn').addEventListener('touchstart', () => jumpStrength = -20);
-document.getElementById('jumpHighBtn').addEventListener('touchstart', () => jumpStrength = -30);
+// Kontrollit
+document.getElementById('leftBtn').addEventListener('click', () => cat.direction = -1);
+document.getElementById('rightBtn').addEventListener('click', () => cat.direction = 1);
+document.getElementById('jumpLowBtn').addEventListener('click', () => jumpStrength = -14);
+document.getElementById('jumpMedBtn').addEventListener('click', () => jumpStrength = -20);
+document.getElementById('jumpHighBtn').addEventListener('click', () => jumpStrength = -30);
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'ArrowLeft') cat.direction = -1;
@@ -220,7 +222,22 @@ document.addEventListener('keydown', function(e) {
     if (e.key === '1') jumpStrength = -14;
     if (e.key === '2') jumpStrength = -20;
     if (e.key === '3') jumpStrength = -30;
+
+    // Restart Space-napista
+    if ((gameOver || gameWon) && e.code === 'Space') {
+        resetGame();
+    }
 });
 
+// Restart-napin käsittely
+canvas.addEventListener('click', function(e) {
+    if ((gameOver || gameWon) &&
+        e.offsetX >= 120 && e.offsetX <= 280 &&
+        e.offsetY >= 220 && e.offsetY <= 270) {
+        resetGame();
+    }
+});
+
+// Käynnistys
 resetGame();
 loop();

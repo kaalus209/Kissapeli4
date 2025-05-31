@@ -61,9 +61,11 @@ function drawBadFish() {
     ctx.fillRect(badFish.x, badFish.y, 20, 20);
 }
 
-function drawText(text, x = 100, y = 180) {
+function drawCenteredText(text, y, font = '24px Arial') {
+    ctx.font = font;
+    const textWidth = ctx.measureText(text).width;
+    const x = (canvas.width - textWidth) / 2;
     ctx.fillStyle = 'black';
-    ctx.font = '24px Arial';
     ctx.fillText(text, x, y);
 }
 
@@ -72,7 +74,10 @@ function drawButton() {
     ctx.fillRect(120, 220, 160, 50);
     ctx.fillStyle = 'white';
     ctx.font = '18px Arial';
-    ctx.fillText('Restart', 160, 250);
+    const text = 'PLAY AGAIN';
+    const textWidth = ctx.measureText(text).width;
+    const textX = 120 + (160 - textWidth) / 2;
+    ctx.fillText(text, textX, 250);
 }
 
 // Päivitys
@@ -180,7 +185,6 @@ function draw() {
     ctx.font = '16px Arial';
     ctx.fillText('Score: ' + score, 10, 20);
 
-    // Kun peli voitettu → näytä TIME
     if (gameWon) {
         let totalTime = (endTime - startTime) / 1000;
         ctx.fillText('TIME: ' + totalTime.toFixed(2) + ' s', 10, 40);
@@ -189,16 +193,20 @@ function draw() {
     }
 
     if (levelUpTimer > 0) {
-        drawText('LEVEL UP!', canvas.width - 150, 30);
+        drawCenteredText('LEVEL UP!', 50, '24px Arial');
     }
 
-    if (gameOver) {
-        drawText('GAME OVER');
-        drawButton();
-    }
+    // GAME OVER tai WELL PLAYED näkymä
+    if (gameOver || gameWon) {
+        const title = gameOver ? 'GAME OVER' : 'WELL PLAYED';
+        drawCenteredText(title, 120, '32px Arial');
 
-    if (gameWon) {
-        drawText('WELL PLAYED');
+        let totalTime = ((gameWon ? endTime : Date.now()) - startTime) / 1000;
+
+        drawCenteredText('Score: ' + score, 170, '20px Arial');
+        drawCenteredText('Level: ' + level, 200, '20px Arial');
+        drawCenteredText('Time: ' + totalTime.toFixed(2) + ' s', 230, '20px Arial');
+
         drawButton();
     }
 }

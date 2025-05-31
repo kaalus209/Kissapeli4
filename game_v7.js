@@ -201,11 +201,10 @@ function draw() {
         const title = gameOver ? 'GAME OVER' : 'WELL PLAYED';
         drawCenteredText(title, 120, '32px Arial');
 
-        let totalTime = ((gameWon ? endTime : Date.now()) - startTime) / 1000;
-
+        // "Score" ja "Level" keskelle — mutta EI Time enää
         drawCenteredText('Score: ' + score, 170, '20px Arial');
         drawCenteredText('Level: ' + level, 200, '20px Arial');
-        
+
         drawButton();
     }
 }
